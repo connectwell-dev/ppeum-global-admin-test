@@ -180,6 +180,54 @@ export interface ProductGroup {
   updatedAt: string
 }
 
+// 약관
+export type PolicyType = 'terms' | 'privacy'
+
+export interface PolicyCategoryItem {
+  id: number
+  language: Language
+  type: PolicyType
+}
+
+export interface PolicyItem {
+  id: number
+  note: string
+  createdAt: string
+}
+
+export interface PolicyCategoryDetail {
+  id: number
+  language: Language
+  type: PolicyType
+  policies: PolicyItem[]
+}
+
+// 기본 팝업
+export type PopupBasicType = 'pc' | 'mobile'
+
+export interface PopupBasicCategoryItem {
+  id: number
+  language: Language
+  type: PopupBasicType
+}
+
+export interface PopupBasicItem {
+  id: number
+  startAt: string
+  startTime: string
+  endAt: string
+  endTime: string
+  createdAt: string
+  images: { path: string }[]
+}
+
+export interface PopupBasicCategoryDetail {
+  id: number
+  language: Language
+  type: PopupBasicType
+  popupBasics: PopupBasicItem[]
+}
+
 // 상세페이지 설명
 export interface ProductDetailInfoListItem {
   id: number

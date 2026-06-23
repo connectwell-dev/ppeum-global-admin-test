@@ -11,6 +11,9 @@ import ProductDetailInfoPage from './pages/ProductDetailInfoPage'
 import ProductDetailInfoEditPage from './pages/ProductDetailInfoEditPage'
 import ImagesPage from './pages/ImagesPage'
 import ProductGroupsPage from './pages/ProductGroupsPage'
+import PolicyPage from './pages/PolicyPage'
+import BasicPopupPage from './pages/BasicPopupPage'
+import HospitalWorkTimePage from './pages/HospitalWorkTimePage'
 
 export default function App() {
   return (
@@ -35,6 +38,9 @@ export default function App() {
         <Route path="/product-detail-info/:id" element={<ProductDetailInfoEditPage />} />
         <Route path="/product-groups" element={<ProductGroupsPage />} />
         <Route path="/images" element={<ImagesPage />} />
+        <Route path="/policy" element={<PolicyPage />} />
+        <Route path="/basic-popup" element={<BasicPopupPage />} />
+        <Route path="/hospital-work-time" element={<HospitalWorkTimePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

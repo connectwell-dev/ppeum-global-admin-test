@@ -4,6 +4,10 @@ export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
   'http://localhost:3000'
 
+export const IMAGE_BASE_URL: string =
+  (import.meta.env.VITE_IMAGE_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+  ''
+
 const LS = {
   access: 'ppeum.accessToken',
   refresh: 'ppeum.refreshToken',
