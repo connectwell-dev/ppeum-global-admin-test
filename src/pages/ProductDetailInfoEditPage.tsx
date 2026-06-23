@@ -5,7 +5,7 @@ import { useToast } from '../lib/toast'
 import {
   BASE_LANGUAGE,
   LANGUAGES,
-  OPERATION_SHORT_DESC_KEYS,
+  DETAIL_INFO_SHORT_DESC_KEYS,
   PUBLIC_LANGUAGE,
   langLabel,
 } from '../lib/constants'
@@ -14,12 +14,12 @@ import type {
   KeyValue,
   Language,
   NotMatchKey,
-  OperationInfoDetail,
+  ProductDetailInfoDetail,
 } from '../lib/types'
 import { ChipsInput, KeyValueEditor, Loading, Spinner } from '../components/ui'
 import ImagePicker from '../components/ImagePicker'
 
-interface OpForm {
+interface DetailForm {
   title: string
   description: string
   shortDescription: KeyValue[]
@@ -29,7 +29,7 @@ interface OpForm {
   note: string
 }
 
-const emptyForm: OpForm = {
+const emptyForm: DetailForm = {
   title: '',
   description: '',
   shortDescription: [],
@@ -39,9 +39,8 @@ const emptyForm: OpForm = {
   note: '',
 }
 
-// 언어별 고정 항목(디폴트)을 항상 맨 앞에 채우고, 그 외 입력값은 뒤에 추가 항목으로 둔다.
 const withDefaultShortDesc = (lang: Language, items: KeyValue[]): KeyValue[] => {
-  const keys = OPERATION_SHORT_DESC_KEYS[lang] ?? []
+  const keys = DETAIL_INFO_SHORT_DESC_KEYS[lang] ?? []
   const fixed = keys.map((key) => ({
     key,
     value: items.find((s) => s.key === key)?.value ?? '',
@@ -50,12 +49,12 @@ const withDefaultShortDesc = (lang: Language, items: KeyValue[]): KeyValue[] => 
   return [...fixed, ...extras]
 }
 
-const initialForm = (lang: Language): OpForm => ({
+const initialForm = (lang: Language): DetailForm => ({
   ...emptyForm,
   shortDescription: withDefaultShortDesc(lang, []),
 })
 
-const toForm = (d: OperationInfoDetail, lang: Language): OpForm => ({
+const toForm = (d: ProductDetailInfoDetail, lang: Language): DetailForm => ({
   title: d.title ?? '',
   description: d.description ?? '',
   shortDescription: withDefaultShortDesc(lang, d.shortDescription ?? []),
@@ -65,12 +64,12 @@ const toForm = (d: OperationInfoDetail, lang: Language): OpForm => ({
   note: d.note ?? '',
 })
 
-const sameForm = (a: OpForm, b: OpForm) => JSON.stringify(a) === JSON.stringify(b)
+const sameForm = (a: DetailForm, b: DetailForm) => JSON.stringify(a) === JSON.stringify(b)
 
-export default function OperationInfoEditPage() {
+export default function ProductDetailInfoEditPage() {
   const { id } = useParams()
   const isNew = !id
-  const opId = id ? Number(id) : null
+  const detailId = id ? Number(id) : null
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -79,20 +78,17 @@ export default function OperationInfoEditPage() {
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<Language>(BASE_LANGUAGE)
 
-  // 언어별 폼 상태를 클라이언트에 보존한다.
-  // 탭을 옮겼다가 돌아와도 입력(수정) 중 내용이 그대로 유지된다.
-  const [forms, setForms] = useState<Record<string, OpForm>>(
+  const [forms, setForms] = useState<Record<string, DetailForm>>(
     isNew ? { [BASE_LANGUAGE]: initialForm(BASE_LANGUAGE) } : {},
   )
-  // 서버에서 마지막으로 불러온/저장한 원본 스냅샷 (수정중 여부 비교용)
-  const [originals, setOriginals] = useState<Record<string, OpForm>>(
+  const [originals, setOriginals] = useState<Record<string, DetailForm>>(
     isNew ? { [BASE_LANGUAGE]: initialForm(BASE_LANGUAGE) } : {},
   )
   const [notMatchMap, setNotMatchMap] = useState<Record<string, NotMatchKey[]>>({})
   const [isSimpleChange, setIsSimpleChange] = useState(false)
 
   const fetchDetail = (language: Language) =>
-    api.get<OperationInfoDetail>(`/api/v1/operation-info/${opId}`, { language })
+    api.get<ProductDetailInfoDetail>(`/api/v1/product-detail-info/${detailId}`, { language })
 
   const loadLang = async (language: Language) => {
     const d = await fetchDetail(language)
@@ -102,11 +98,10 @@ export default function OperationInfoEditPage() {
     setNotMatchMap((prev) => ({ ...prev, [language]: d.notMatchKeys ?? [] }))
   }
 
-  // 초기 로드 (기준 언어)
   useEffect(() => {
     ;(async () => {
       try {
-        if (opId) await loadLang(BASE_LANGUAGE)
+        if (detailId) await loadLang(BASE_LANGUAGE)
       } catch (e) {
         toast.error(e instanceof ApiError ? e.message : '정보를 불러오지 못했습니다.')
       } finally {
@@ -114,12 +109,11 @@ export default function OperationInfoEditPage() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opId])
+  }, [detailId])
 
   const switchTab = async (next: Language) => {
     if (next === tab) return
     setIsSimpleChange(false)
-    // 신규 등록: 처음 여는 언어 탭은 디폴트 항목으로 초기화하고 클라 상태로 보존한다.
     if (isNew) {
       if (!forms[next]) {
         const init = initialForm(next)
@@ -130,8 +124,7 @@ export default function OperationInfoEditPage() {
       return
     }
     setTab(next)
-    if (!opId) return
-    // 처음 여는 탭은 전체 로드한다.
+    if (!detailId) return
     if (!forms[next]) {
       setTabLoading(true)
       try {
@@ -143,8 +136,6 @@ export default function OperationInfoEditPage() {
       }
       return
     }
-    // 이미 캐시가 있으면 재검수 알림을 서버 기준으로 다시 갱신한다.
-    // 저장하지 않은 수정 내용은 그대로 보존하고, 수정 중이 아니면 폼/원본도 최신화한다.
     try {
       const wasDirty = isDirty(next)
       const d = await fetchDetail(next)
@@ -155,22 +146,20 @@ export default function OperationInfoEditPage() {
         setOriginals((prev) => ({ ...prev, [next]: f }))
       }
     } catch {
-      // 알림 갱신 실패는 조용히 무시(기존 표시 유지)
+      // silent
     }
   }
 
   const current = forms[tab]
-  const patch = (p: Partial<OpForm>) =>
+  const patch = (p: Partial<DetailForm>) =>
     setForms((prev) => ({ ...prev, [tab]: { ...prev[tab], ...p } }))
 
   const isDirty = (lang: Language) =>
     !!forms[lang] && !!originals[lang] && !sameForm(forms[lang], originals[lang])
 
-  // 현재 탭 데이터만 페이로드로 구성한다.
-  const buildPayload = (f: OpForm) => ({
+  const buildPayload = (f: DetailForm) => ({
     title: f.title.trim() || undefined,
     description: f.description || undefined,
-    // 항목명이 빈 행은 제외한다. (값은 비워도 등록 가능)
     shortDescription: f.shortDescription.filter((s) => s.key.trim() !== ''),
     imageCode: f.image?.code,
     hashtag: f.hashtag,
@@ -178,8 +167,7 @@ export default function OperationInfoEditPage() {
     note: f.note || undefined,
   })
 
-  // 기준 언어 외에는 실제로 입력한 내용이 있을 때만 함께 등록한다.
-  const hasContent = (f: OpForm) =>
+  const hasContent = (f: DetailForm) =>
     f.title.trim() !== '' ||
     f.description.trim() !== '' ||
     f.hashtag.length > 0 ||
@@ -188,7 +176,6 @@ export default function OperationInfoEditPage() {
     !!f.image ||
     f.shortDescription.some((s) => s.value.trim() !== '')
 
-  // 신규 등록: 입력된 모든 언어를 한 번에 등록한다.
   const createAll = async () => {
     const baseF = forms[BASE_LANGUAGE]
     if (!baseF || !baseF.title.trim()) {
@@ -203,9 +190,9 @@ export default function OperationInfoEditPage() {
         if (!f) continue
         if (l === BASE_LANGUAGE || hasContent(f)) body[l] = buildPayload(f)
       }
-      const res = await api.post<{ id: number }>('/api/v1/operation-info', body)
-      toast.success('시술 설명이 등록되었습니다.')
-      navigate(`/operation-info/${res.id}`, { replace: true })
+      const res = await api.post<{ id: number }>('/api/v1/product-detail-info', body)
+      toast.success('상세페이지가 등록되었습니다.')
+      navigate(`/product-detail-info/${res.id}`, { replace: true })
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
     } finally {
@@ -222,20 +209,19 @@ export default function OperationInfoEditPage() {
     try {
       const payload = buildPayload(f)
       if (tab === BASE_LANGUAGE) {
-        await api.put(`/api/v1/operation-info/${opId}`, { ...payload, isSimpleChange })
+        await api.put(`/api/v1/product-detail-info/${detailId}`, { ...payload, isSimpleChange })
       } else if (tab === PUBLIC_LANGUAGE) {
-        await api.put(`/api/v1/operation-info/${opId}/public-translation`, {
+        await api.put(`/api/v1/product-detail-info/${detailId}/public-translation`, {
           ...payload,
           isSimpleChange,
         })
       } else {
-        await api.put(`/api/v1/operation-info/${opId}/translation`, {
+        await api.put(`/api/v1/product-detail-info/${detailId}/translation`, {
           language: tab,
           ...payload,
         })
       }
       toast.success(`${langLabel(tab)} 내용이 저장되었습니다.`)
-      // 저장 성공 → 서버 기준으로 다시 불러와 재검수 알림/원본 스냅샷을 갱신한다.
       try {
         await loadLang(tab)
       } catch {
@@ -254,11 +240,9 @@ export default function OperationInfoEditPage() {
   const baseForm = forms[BASE_LANGUAGE]
   const notMatchKeys = notMatchMap[tab] ?? []
 
-  // 재검수 필요 항목(notMatchKeys)을 각 인풋에 매핑하기 위한 헬퍼들
   const REVIEW_NOTE = '기준 언어가 변경되어 재검수가 필요합니다.'
   const notMatchSet = new Set(notMatchKeys.map((k) => k.key))
   const hasErr = (key: string) => notMatchSet.has(key)
-  // 배열 필드(hashtag.0, caution.1 …) → 인덱스 집합
   const errIndexes = (prefix: string) => {
     const s = new Set<number>()
     notMatchSet.forEach((k) => {
@@ -271,7 +255,6 @@ export default function OperationInfoEditPage() {
   }
   const hashtagErr = errIndexes('hashtag')
   const cautionErr = errIndexes('caution')
-  // shortDescription.0.key / shortDescription.0.value → 'i.key' / 'i.value' 집합
   const shortDescErr = new Set<string>()
   notMatchSet.forEach((k) => {
     if (k.startsWith('shortDescription.')) shortDescErr.add(k.slice('shortDescription.'.length))
@@ -280,10 +263,10 @@ export default function OperationInfoEditPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/operation-info')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/product-detail-info')}>
           ← 목록
         </button>
-        <h2>{isNew ? '시술 설명 등록' : '시술 설명 수정'}</h2>
+        <h2>{isNew ? '상세페이지 등록' : '상세페이지 수정'}</h2>
       </div>
 
       <div className="tabs" style={{ marginBottom: 18 }}>
@@ -376,8 +359,8 @@ export default function OperationInfoEditPage() {
             <KeyValueEditor
               value={current.shortDescription}
               onChange={(v) => patch({ shortDescription: v })}
-              lockedKeys={OPERATION_SHORT_DESC_KEYS[tab] ?? []}
-              valuePlaceholder="시술 설명"
+              lockedKeys={DETAIL_INFO_SHORT_DESC_KEYS[tab] ?? []}
+              valuePlaceholder="설명"
               errorCells={shortDescErr}
             />
             {shortDescErr.size > 0 && (

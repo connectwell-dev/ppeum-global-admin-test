@@ -1,6 +1,6 @@
 import type {
   Language,
-  ProductEventType,
+  ProductCategoryType,
   WeekDayType,
 } from './types'
 
@@ -31,13 +31,12 @@ export const OTHER_LANGUAGES: Language[] = LANGUAGES.map((l) => l.value).filter(
   (l) => !RESERVED_LANGUAGES.has(l),
 )
 
-export const EVENT_TYPES: { value: ProductEventType; label: string }[] = [
+export const CATEGORY_TYPES: { value: ProductCategoryType; label: string }[] = [
   { value: 'general', label: '일반' },
   { value: 'promotion', label: '프로모션' },
 ]
 
-// 시술 설명 요약(shortDescription) 언어별 고정 키 — 서버 검증과 동일해야 함
-export const OPERATION_SHORT_DESC_KEYS: Record<Language, string[]> = {
+export const DETAIL_INFO_SHORT_DESC_KEYS: Record<Language, string[]> = {
   ja: ['麻酔時間', '手術時間', '回復期間', '持続期間', '再手術周期'],
   ko: ['마취시간', '시술시간', '회복기간', '유지시간', '재시술주기'],
   en: ['Anesthesia time', 'Surgery time', 'Recovery period', 'Duration', 'Reoperation cycle'],

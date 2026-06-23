@@ -198,7 +198,6 @@ export default function ProductsPage() {
               <tr>
                 <th>코드</th>
                 <th>상품명</th>
-                <th>분류</th>
                 <th>가격</th>
                 <th>이벤트가</th>
                 <th>노출기간</th>
@@ -212,7 +211,6 @@ export default function ProductsPage() {
                 <tr key={p.id} className="clickable" onClick={() => navigate(`/products/${p.id}`)}>
                   <td>{p.code}</td>
                   <td>{p.name || <span className="hint">(미입력)</span>}</td>
-                  <td>{p.categoryName || <span className="hint">-</span>}</td>
                   <td>{p.productPrice?.toLocaleString()}원</td>
                   <td>{p.eventPrice != null ? `${p.eventPrice.toLocaleString()}원` : <span className="hint">-</span>}</td>
                   <td className="hint">{formatPeriod(p.startDate, p.endDate)}</td>
@@ -239,7 +237,7 @@ export default function ProductsPage() {
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={8}>
                     <Empty message="등록된 상품이 없습니다." />
                   </td>
                 </tr>

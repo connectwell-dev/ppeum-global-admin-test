@@ -28,8 +28,8 @@ export interface Paginated<T> {
 // enum 들
 export type Language = 'ja' | 'ko' | 'zhCN' | 'zhTW' | 'en' | 'th' | 'vi' | 'ru'
 export type WeekDayType = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
-export type ProductEventType = 'general' | 'promotion'
-export type GeneralImageType = 'operation_info' | 'event' | 'product'
+export type ProductCategoryType = 'general' | 'promotion'
+export type GeneralImageType = 'product_detail_info' | 'event' | 'product'
 export type Platform = 'admin' | 'user'
 
 export interface KeyValue {
@@ -89,7 +89,6 @@ export interface ImageCategory {
 export interface ProductListItem {
   id: number
   code: string
-  categoryName: string
   name: string
   productPrice: number
   eventPrice: number | null
@@ -104,12 +103,10 @@ export interface ProductListItem {
 export interface ProductDetail extends ProductListItem {
   productName: string
   productDescription: string | null
-  productCategoryName: string
-  productCategoryId: number | null
   image: ImageRef | null
   isView: boolean
-  operationInfoId: number | null
-  operationInfoTitle: string | null
+  productDetailInfoId: number | null
+  productDetailInfoTitle: string | null
 }
 
 export interface TranslationView {
@@ -123,31 +120,14 @@ export interface TranslationView {
   notMatchKeys: NotMatchKey[]
 }
 
-// 분류 (단일 뎁스)
+// 카테고리 (기존 이벤트)
 export interface CategoryListItem {
-  id: number
-  order: number
-  isActive: boolean
-  name: string
-}
-
-export interface CategoryDetail {
-  id: number
-  order: number
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-  translations: { language: Language; name: string }[]
-}
-
-// 이벤트
-export interface EventListItem {
   id: number
   code: string
   order: number
   name: string
   isActive: boolean
-  eventType: ProductEventType
+  categoryType: ProductCategoryType
   startDate: string | null
   endDate: string | null
   reservationStartDate: string | null
@@ -157,13 +137,13 @@ export interface EventListItem {
   createdAt: string
 }
 
-export interface EventDetail {
+export interface CategoryDetail {
   id: number
   code: string
   name: string
   image: ImageRef | null
   isActive: boolean
-  eventType: ProductEventType
+  categoryType: ProductCategoryType
   startDate: string | null
   endDate: string | null
   reservationStartDate: string | null
@@ -173,7 +153,7 @@ export interface EventDetail {
   updatedAt: string
 }
 
-export interface EventProduct {
+export interface CategoryProduct {
   productId: number
   eventPrice: number | null
   eventDiscountPercent: number | null
@@ -183,7 +163,7 @@ export interface EventProduct {
   productPrice: number
 }
 
-export interface EventTranslationView {
+export interface CategoryTranslationView {
   name: string
   originName: string
   image: ImageRef | null
@@ -200,8 +180,8 @@ export interface ProductGroup {
   updatedAt: string
 }
 
-// 시술 설명
-export interface OperationInfoListItem {
+// 상세페이지 설명
+export interface ProductDetailInfoListItem {
   id: number
   code: string
   title: string
@@ -212,7 +192,7 @@ export interface OperationInfoListItem {
   updatedAt: string
 }
 
-export interface OperationInfoDetail {
+export interface ProductDetailInfoDetail {
   id: number
   code: string
   title: string | null

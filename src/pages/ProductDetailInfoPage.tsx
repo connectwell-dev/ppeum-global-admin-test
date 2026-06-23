@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../lib/api'
 import { useToast } from '../lib/toast'
 import { useLang } from '../lib/lang'
-import type { OperationInfoListItem, Paginated } from '../lib/types'
+import type { ProductDetailInfoListItem, Paginated } from '../lib/types'
 import {
   Empty,
   Loading,
@@ -14,12 +14,12 @@ import {
 
 const ROW_COUNT = 10
 
-export default function OperationInfoPage() {
+export default function ProductDetailInfoPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const { lang } = useLang()
 
-  const [items, setItems] = useState<OperationInfoListItem[]>([])
+  const [items, setItems] = useState<ProductDetailInfoListItem[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPage, setTotalPage] = useState(1)
@@ -30,8 +30,8 @@ export default function OperationInfoPage() {
     async (p: number) => {
       setLoading(true)
       try {
-        const res = await api.get<Paginated<OperationInfoListItem>>(
-          '/api/v1/operation-info/list',
+        const res = await api.get<Paginated<ProductDetailInfoListItem>>(
+          '/api/v1/product-detail-info/list',
           { page: p, rowCount: ROW_COUNT, title: title || undefined },
         )
         setItems(res.data)
@@ -39,7 +39,7 @@ export default function OperationInfoPage() {
         setTotalPage(res.totalPage)
         setPage(res.page)
       } catch (e) {
-        toast.error(e instanceof ApiError ? e.message : '시술 설명을 불러오지 못했습니다.')
+        toast.error(e instanceof ApiError ? e.message : '상세페이지를 불러오지 못했습니다.')
       } finally {
         setLoading(false)
       }
@@ -52,10 +52,10 @@ export default function OperationInfoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
-  const remove = async (item: OperationInfoListItem) => {
+  const remove = async (item: ProductDetailInfoListItem) => {
     if (!confirmDelete(item.title)) return
     try {
-      await api.del(`/api/v1/operation-info/${item.id}`)
+      await api.del(`/api/v1/product-detail-info/${item.id}`)
       toast.success('삭제되었습니다.')
       load(page)
     } catch (e) {
@@ -66,11 +66,11 @@ export default function OperationInfoPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h2>시술 설명</h2>
-        <span className="sub">시술 설명 콘텐츠와 언어별 번역을 관리합니다.</span>
+        <h2>상세페이지 설정</h2>
+        <span className="sub">상세페이지 콘텐츠와 언어별 번역을 관리합니다.</span>
         <div className="page-head-actions">
-          <button className="btn btn-primary" onClick={() => navigate('/operation-info/new')}>
-            + 시술 설명 등록
+          <button className="btn btn-primary" onClick={() => navigate('/product-detail-info/new')}>
+            + 상세페이지 등록
           </button>
         </div>
       </div>
@@ -110,7 +110,7 @@ export default function OperationInfoPage() {
                 <tr
                   key={o.id}
                   className="clickable"
-                  onClick={() => navigate(`/operation-info/${o.id}`)}
+                  onClick={() => navigate(`/product-detail-info/${o.id}`)}
                 >
                   <td>{o.code}</td>
                   <td>{o.title || <span className="hint">(미입력)</span>}</td>
@@ -133,7 +133,7 @@ export default function OperationInfoPage() {
                     <div className="row-actions">
                       <button
                         className="btn btn-sm"
-                        onClick={() => navigate(`/operation-info/${o.id}`)}
+                        onClick={() => navigate(`/product-detail-info/${o.id}`)}
                       >
                         수정
                       </button>
@@ -147,7 +147,7 @@ export default function OperationInfoPage() {
               {items.length === 0 && (
                 <tr>
                   <td colSpan={6}>
-                    <Empty message="등록된 시술 설명이 없습니다." />
+                    <Empty message="등록된 상세페이지가 없습니다." />
                   </td>
                 </tr>
               )}
