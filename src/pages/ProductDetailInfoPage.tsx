@@ -66,7 +66,7 @@ export default function ProductDetailInfoPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <h2>상세페이지 설정</h2>
+        <h2>상세페이지</h2>
         <span className="sub">상세페이지 콘텐츠와 언어별 번역을 관리합니다.</span>
         <div className="page-head-actions">
           <button className="btn btn-primary" onClick={() => navigate('/product-detail-info/new')}>

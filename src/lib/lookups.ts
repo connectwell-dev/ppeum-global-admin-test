@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { ProductDetailInfoListItem, Paginated } from './types'
+import type { ProductDetailInfoListItem, ProductGroup, Paginated } from './types'
 
 export interface ProductDetailInfoOption {
   id: number
@@ -13,6 +13,14 @@ export async function loadProductDetailInfoOptions(): Promise<ProductDetailInfoO
       rowCount: 200,
     })
     return res.data.map((o) => ({ id: o.id, title: o.title }))
+  } catch {
+    return []
+  }
+}
+
+export async function loadProductGroups(): Promise<ProductGroup[]> {
+  try {
+    return await api.get<ProductGroup[]>('/api/v1/product-group/list')
   } catch {
     return []
   }

@@ -12,16 +12,18 @@ import {
 } from '../lib/constants'
 import type {
   CategoryDetail,
-  CategoryProduct,
+  CategoryProductItem,
   CategoryTranslationView,
   ImageRef,
   Language,
   Paginated,
   ProductCategoryType,
+  ProductGroup,
   ProductListItem,
   WeekDayType,
 } from '../lib/types'
-import { Empty, Loading, Spinner, confirmDelete } from '../components/ui'
+import { loadProductGroups } from '../lib/lookups'
+import { Empty, Loading, Modal, Spinner } from '../components/ui'
 import ImagePicker from '../components/ImagePicker'
 
 interface BaseForm {
@@ -48,9 +50,13 @@ const emptyBase: BaseForm = {
   image: null,
 }
 
-type TransForm = { name: string; image: ImageRef | null }
+interface TransForm {
+  name: string
+  image: ImageRef | null
+  isView: boolean
+}
 
-const emptyTrans: TransForm = { name: '', image: null }
+const emptyTrans: TransForm = { name: '', image: null, isView: true }
 
 const sameJSON = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -62,18 +68,28 @@ export default function CategoryEditPage() {
   const toast = useToast()
 
   const [loading, setLoading] = useState(true)
+  const [tabLoading, setTabLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [tab, setTab] = useState<Language>(BASE_LANGUAGE)
+
   const [base, setBase] = useState<BaseForm>(emptyBase)
   const [baseOriginal, setBaseOriginal] = useState<BaseForm>(emptyBase)
   const [isSimpleChange, setIsSimpleChange] = useState(false)
 
-  const [tab, setTab] = useState<Language>(BASE_LANGUAGE)
-  // 언어별 번역 폼을 클라이언트에 보존한다. 탭을 옮겼다 돌아와도 입력 중 내용이 유지된다.
+  const [products, setProducts] = useState<CategoryProductItem[]>([])
+  const [productsOriginal, setProductsOriginal] = useState<CategoryProductItem[]>([])
+  const [groups, setGroups] = useState<ProductGroup[]>([])
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [modalGroupId, setModalGroupId] = useState<string>('')
+  const [modalSearch, setModalSearch] = useState('')
+  const [modalProducts, setModalProducts] = useState<ProductListItem[]>([])
+  const [modalLoading, setModalLoading] = useState(false)
+  const [checked, setChecked] = useState<Set<number>>(new Set())
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+
   const [transForms, setTransForms] = useState<Record<string, TransForm>>({})
   const [transOriginals, setTransOriginals] = useState<Record<string, TransForm>>({})
   const [transMetas, setTransMetas] = useState<Record<string, CategoryTranslationView>>({})
-  const [transLoading, setTransLoading] = useState(false)
-  const [transSimple, setTransSimple] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -93,7 +109,11 @@ export default function CategoryEditPage() {
           }
           setBase(loaded)
           setBaseOriginal(loaded)
+          setProducts(d.products ?? [])
+          setProductsOriginal(d.products ?? [])
         }
+        const g = await loadProductGroups()
+        setGroups(g)
       } catch (e) {
         toast.error(e instanceof ApiError ? e.message : '정보를 불러오지 못했습니다.')
       } finally {
@@ -103,40 +123,57 @@ export default function CategoryEditPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId])
 
-  // 번역 1건을 서버에서 불러와 메타(재검수 알림)와 폼을 갱신한다.
-  // 저장하지 않은 수정 내용은 보존하기 위해, force가 아니고 수정 중이면 폼/원본은 건드리지 않는다.
-  const loadTranslation = async (language: Language, opts?: { force?: boolean }) => {
-    if (!categoryId) return
+  const loadTranslation = async (language: Language) => {
+    if (!categoryId) return null
     const v = await api.get<CategoryTranslationView>(
       `/api/v1/product-category/${categoryId}/translation`,
       { language },
     )
     setTransMetas((prev) => ({ ...prev, [language]: v }))
-    const dirty =
-      !!transForms[language] &&
-      !!transOriginals[language] &&
-      !sameJSON(transForms[language], transOriginals[language])
-    if (opts?.force || !dirty) {
-      const f: TransForm = { name: v.name ?? '', image: v.image }
-      setTransForms((prev) => ({ ...prev, [language]: f }))
-      setTransOriginals((prev) => ({ ...prev, [language]: f }))
-    }
+    const f: TransForm = { name: v.name ?? '', image: v.image, isView: v.isView ?? true }
+    return f
   }
 
-  const switchTab = (next: Language) => {
+  const switchTab = async (next: Language) => {
     if (next === tab) return
+    setIsSimpleChange(false)
+    if (isNew) {
+      if (next !== BASE_LANGUAGE && !transForms[next]) {
+        setTransForms((prev) => ({ ...prev, [next]: { ...emptyTrans } }))
+        setTransOriginals((prev) => ({ ...prev, [next]: { ...emptyTrans } }))
+      }
+      setTab(next)
+      return
+    }
     setTab(next)
-    setTransSimple(false)
-    if (isNew || next === BASE_LANGUAGE || !categoryId) return
+    if (next === BASE_LANGUAGE || !categoryId) return
     if (!transForms[next]) {
-      // 처음 여는 탭: 전체 로드
-      setTransLoading(true)
-      loadTranslation(next)
-        .catch((e) => toast.error(e instanceof ApiError ? e.message : '번역을 불러오지 못했습니다.'))
-        .finally(() => setTransLoading(false))
+      setTabLoading(true)
+      try {
+        const f = await loadTranslation(next)
+        if (f) {
+          setTransForms((prev) => ({ ...prev, [next]: f }))
+          setTransOriginals((prev) => ({ ...prev, [next]: f }))
+        }
+      } catch (e) {
+        toast.error(e instanceof ApiError ? e.message : '번역을 불러오지 못했습니다.')
+      } finally {
+        setTabLoading(false)
+      }
     } else {
-      // 캐시가 있으면 재검수 알림을 서버 기준으로 다시 갱신한다.(수정 중이면 폼은 보존)
-      loadTranslation(next).catch(() => {})
+      loadTranslation(next)
+        .then((f) => {
+          if (!f) return
+          const wasDirty =
+            !!transForms[next] &&
+            !!transOriginals[next] &&
+            !sameJSON(transForms[next], transOriginals[next])
+          if (!wasDirty) {
+            setTransForms((prev) => ({ ...prev, [next]: f }))
+            setTransOriginals((prev) => ({ ...prev, [next]: f }))
+          }
+        })
+        .catch(() => {})
     }
   }
 
@@ -144,13 +181,122 @@ export default function CategoryEditPage() {
   const setTrans = (f: TransForm) => setTransForms((prev) => ({ ...prev, [tab]: f }))
   const transMeta = transMetas[tab] ?? null
 
-  const baseDirty = !isNew && !sameJSON(base, baseOriginal)
+  const baseDirty =
+    !isNew && (!sameJSON(base, baseOriginal) || !sameJSON(products, productsOriginal))
   const transDirty = (l: Language) =>
     !!transForms[l] && !!transOriginals[l] && !sameJSON(transForms[l], transOriginals[l])
   const tabDirty = (l: Language) => (l === BASE_LANGUAGE ? baseDirty : transDirty(l))
 
+  const removeProduct = (productId: number) =>
+    setProducts((prev) =>
+      prev
+        .filter((p) => p.productId !== productId)
+        .map((p, i) => ({ ...p, order: i + 1 })),
+    )
+
+  const reorder = (from: number, to: number) => {
+    setProducts((prev) => {
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next.map((p, i) => ({ ...p, order: i + 1 }))
+    })
+  }
+
+  // 팝업 상품 목록을 서버에서 조회한다.
+  const fetchModalProducts = async (groupId?: string, name?: string) => {
+    setModalLoading(true)
+    try {
+      const query: Record<string, unknown> = { page: 1, rowCount: 500 }
+      if (groupId) query.productGroupId = Number(groupId)
+      if (name?.trim()) query.name = name.trim()
+      const r = await api.get<Paginated<ProductListItem>>('/api/v1/product/list', query)
+      setModalProducts(r.data)
+    } catch {
+      setModalProducts([])
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // 팝업에서 이미 등록된 상품을 제외한 목록
+  const existingIds = new Set(products.map((p) => p.productId))
+  const availableForModal = modalProducts.filter((p) => !existingIds.has(p.id))
+
+  const allFilteredChecked =
+    availableForModal.length > 0 && availableForModal.every((p) => checked.has(p.id))
+
+  const toggleCheck = (id: number) =>
+    setChecked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const toggleAll = () => {
+    if (allFilteredChecked) {
+      setChecked((prev) => {
+        const next = new Set(prev)
+        availableForModal.forEach((p) => next.delete(p.id))
+        return next
+      })
+    } else {
+      setChecked((prev) => {
+        const next = new Set(prev)
+        availableForModal.forEach((p) => next.add(p.id))
+        return next
+      })
+    }
+  }
+
+  const confirmAdd = () => {
+    const toAdd = modalProducts.filter((p) => checked.has(p.id) && !existingIds.has(p.id))
+    if (toAdd.length === 0) {
+      toast.error('추가할 상품을 선택하세요.')
+      return
+    }
+    setProducts((prev) => [
+      ...prev,
+      ...toAdd.map((p, i) => ({
+        productId: p.id,
+        name: p.name,
+        productPrice: p.productPrice,
+        eventPrice: p.eventPrice ?? null,
+        promotionPrice: null,
+        eventDiscountPercent: 0,
+        order: prev.length + i + 1,
+      })),
+    ])
+    setShowProductModal(false)
+    setChecked(new Set())
+    setModalGroupId('')
+    setModalSearch('')
+  }
+
+  const openProductModal = () => {
+    setChecked(new Set())
+    setModalGroupId('')
+    setModalSearch('')
+    setShowProductModal(true)
+    fetchModalProducts()
+  }
+
+  const handleGroupChange = (gid: string) => {
+    setModalGroupId(gid)
+    fetchModalProducts(gid, modalSearch)
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      fetchModalProducts(modalGroupId, modalSearch)
+    }
+  }
+
   const saveBase = async () => {
-    if (!base.name.trim()) return toast.error(`기준 언어(${langLabel(BASE_LANGUAGE)}) 카테고리명은 필수입니다.`)
+    if (!base.name.trim())
+      return toast.error(`기준 언어(${langLabel(BASE_LANGUAGE)}) 카테고리명은 필수입니다.`)
     setSaving(true)
     try {
       const common = {
@@ -162,12 +308,31 @@ export default function CategoryEditPage() {
         weekDay: base.weekDay,
         isActive: base.isActive,
       }
+      const productsPayload = products.map((p) => ({
+        productId: p.productId,
+        promotionPrice: p.promotionPrice ?? null,
+        order: p.order,
+      }))
+
       if (isNew) {
+        const categoryTranslations: Record<string, unknown>[] = [
+          { language: BASE_LANGUAGE, name: base.name.trim(), imageCode: base.image?.code },
+        ]
+        for (const l of LANGUAGES.map((x) => x.value)) {
+          if (l === BASE_LANGUAGE) continue
+          const f = transForms[l]
+          if (!f || !f.name.trim()) continue
+          categoryTranslations.push({
+            language: l,
+            name: f.name.trim(),
+            imageCode: f.image?.code,
+            isView: f.isView,
+          })
+        }
         const res = await api.post<{ id: number }>('/api/v1/product-category', {
           ...common,
-          categoryTranslations: [
-            { language: BASE_LANGUAGE, name: base.name.trim(), imageCode: base.image?.code },
-          ],
+          categoryTranslations,
+          products: productsPayload,
         })
         toast.success('카테고리가 등록되었습니다.')
         navigate(`/categories/${res.id}`, { replace: true })
@@ -177,9 +342,11 @@ export default function CategoryEditPage() {
           name: base.name.trim(),
           imageCode: base.image?.code,
           isSimpleChange,
+          products: productsPayload,
         })
         toast.success('저장되었습니다.')
         setBaseOriginal(base)
+        setProductsOriginal([...products])
       }
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
@@ -194,20 +361,30 @@ export default function CategoryEditPage() {
     if (!f.name.trim()) return toast.error('카테고리명을 입력하세요.')
     setSaving(true)
     try {
-      const payload = { language: tab, name: f.name.trim(), imageCode: f.image?.code }
+      const payload = {
+        language: tab,
+        name: f.name.trim(),
+        imageCode: f.image?.code,
+        isView: f.isView,
+      }
       if (tab === PUBLIC_LANGUAGE) {
         await api.put(`/api/v1/product-category/${categoryId}/public-translation`, {
           ...payload,
-          isSimpleChange: transSimple,
+          isSimpleChange,
         })
       } else {
         await api.put(`/api/v1/product-category/${categoryId}/translation`, payload)
       }
       toast.success(`${langLabel(tab)} 번역이 저장되었습니다.`)
-      // 저장 성공 → 서버 기준으로 다시 불러와 재검수 알림/원본 스냅샷을 갱신한다.
-      await loadTranslation(tab, { force: true }).catch(() =>
-        setTransOriginals((prev) => ({ ...prev, [tab]: f })),
-      )
+      try {
+        const updated = await loadTranslation(tab)
+        if (updated) {
+          setTransForms((prev) => ({ ...prev, [tab]: updated }))
+          setTransOriginals((prev) => ({ ...prev, [tab]: updated }))
+        }
+      } catch {
+        setTransOriginals((prev) => ({ ...prev, [tab]: f }))
+      }
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
     } finally {
@@ -220,37 +397,44 @@ export default function CategoryEditPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/events')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/categories')}>
           ← 목록
         </button>
         <h2>{isNew ? '카테고리 등록' : '카테고리 수정'}</h2>
       </div>
 
-      {!isNew && (
-        <div className="tabs" style={{ marginBottom: 18 }}>
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.value}
-              className={`tab${tab === l.value ? ' active' : ''}`}
-              onClick={() => switchTab(l.value)}
-            >
-              {l.label}
-              {l.value === BASE_LANGUAGE && ' (기준)'}
-              {tabDirty(l.value) && (
-                <span
-                  title="저장하지 않은 수정 내용이 있습니다"
-                  style={{ color: 'var(--primary, #4f6bed)', marginLeft: 4 }}
-                >
-                  ●
-                </span>
-              )}
-            </button>
-          ))}
+      <div className="tabs" style={{ marginBottom: 18 }}>
+        {LANGUAGES.map((l) => (
+          <button
+            key={l.value}
+            className={`tab${tab === l.value ? ' active' : ''}`}
+            onClick={() => switchTab(l.value)}
+          >
+            {l.label}
+            {l.value === BASE_LANGUAGE && ' (기준)'}
+            {!isNew && tabDirty(l.value) && (
+              <span
+                title="저장하지 않은 수정 내용이 있습니다"
+                style={{ color: 'var(--primary, #4f6bed)', marginLeft: 4 }}
+              >
+                ●
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {isNew && (
+        <div className="hint" style={{ marginBottom: 12 }}>
+          언어 탭별로 입력한 뒤 한 번에 등록됩니다. 기준 언어({langLabel(BASE_LANGUAGE)}) 카테고리명은
+          필수입니다.
         </div>
       )}
 
       {tab === BASE_LANGUAGE ? (
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          className="card card-pad"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
           <h3>
             기본 정보 · {langLabel(BASE_LANGUAGE)}(기준)
             {baseDirty && (
@@ -260,12 +444,33 @@ export default function CategoryEditPage() {
             )}
           </h3>
 
+          <div className="field">
+            <label>
+              카테고리명 ({langLabel(BASE_LANGUAGE)}) <span className="req">*</span>
+            </label>
+            <input
+              value={base.name}
+              onChange={(e) => setBase({ ...base, name: e.target.value })}
+            />
+          </div>
+          <ImagePicker
+            value={base.image}
+            onChange={(img) => setBase({ ...base, image: img })}
+            label={`이미지 (${langLabel(BASE_LANGUAGE)})`}
+          />
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', width: '100%' }} />
+
           <div className="field-row">
             <div className="field">
-              <label>유형 <span className="req">*</span></label>
+              <label>
+                유형 <span className="req">*</span>
+              </label>
               <select
                 value={base.categoryType}
-                onChange={(e) => setBase({ ...base, categoryType: e.target.value as ProductCategoryType })}
+                onChange={(e) =>
+                  setBase({ ...base, categoryType: e.target.value as ProductCategoryType })
+                }
               >
                 {CATEGORY_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -348,15 +553,153 @@ export default function CategoryEditPage() {
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', width: '100%' }} />
 
-          <div className="field">
-            <label>카테고리명 ({langLabel(BASE_LANGUAGE)}) <span className="req">*</span></label>
-            <input value={base.name} onChange={(e) => setBase({ ...base, name: e.target.value })} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h4 style={{ margin: 0 }}>연결 상품</h4>
+            <button className="btn btn-sm" onClick={openProductModal}>
+              + 상품 추가
+            </button>
           </div>
-          <ImagePicker
-            value={base.image}
-            onChange={(img) => setBase({ ...base, image: img })}
-            label={`이미지 (${langLabel(BASE_LANGUAGE)})`}
-          />
+
+          {products.length === 0 ? (
+            <Empty message="연결된 상품이 없습니다." />
+          ) : (
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>#</th>
+                    <th>상품명</th>
+                    <th style={{ width: 120 }}>정상가</th>
+                    <th style={{ width: 120 }}>이벤트가</th>
+                    <th style={{ width: 80 }}>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((p, idx) => (
+                    <tr
+                      key={p.productId}
+                      draggable
+                      onDragStart={() => setDragIdx(idx)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragIdx !== null && dragIdx !== idx) reorder(dragIdx, idx)
+                        setDragIdx(null)
+                      }}
+                      onDragEnd={() => setDragIdx(null)}
+                      style={{
+                        cursor: 'grab',
+                        opacity: dragIdx === idx ? 0.4 : 1,
+                      }}
+                    >
+                      <td style={{ color: 'var(--text-muted)', textAlign: 'center' }}>
+                        {p.order}
+                      </td>
+                      <td>{p.name}</td>
+                      <td>{p.productPrice?.toLocaleString()}원</td>
+                      <td>
+                        {p.eventPrice != null ? `${p.eventPrice.toLocaleString()}원` : '-'}
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => removeProduct(p.productId)}
+                        >
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {showProductModal && (
+            <Modal
+              title="상품 추가"
+              size="lg"
+              onClose={() => setShowProductModal(false)}
+              footer={
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button className="btn" onClick={() => setShowProductModal(false)}>
+                    취소
+                  </button>
+                  <button className="btn btn-primary" onClick={confirmAdd}>
+                    {checked.size}개 추가
+                  </button>
+                </div>
+              }
+            >
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <select
+                  value={modalGroupId}
+                  onChange={(e) => handleGroupChange(e.target.value)}
+                  style={{ width: 200 }}
+                >
+                  <option value="">전체 그룹</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="상품명 검색 후 Enter"
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="btn btn-sm"
+                  onClick={() => fetchModalProducts(modalGroupId, modalSearch)}
+                >
+                  검색
+                </button>
+              </div>
+
+              {modalLoading ? (
+                <Loading label="상품 불러오는 중…" />
+              ) : availableForModal.length === 0 ? (
+                <Empty message="조건에 맞는 상품이 없습니다." />
+              ) : (
+                <div style={{ maxHeight: 400, overflow: 'auto' }}>
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 40 }}>
+                          <input
+                            type="checkbox"
+                            checked={allFilteredChecked}
+                            onChange={toggleAll}
+                          />
+                        </th>
+                        <th>상품명</th>
+                        <th style={{ width: 120 }}>정상가</th>
+                        <th style={{ width: 120 }}>이벤트가</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {availableForModal.map((p) => (
+                        <tr key={p.id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={checked.has(p.id)}
+                              onChange={() => toggleCheck(p.id)}
+                            />
+                          </td>
+                          <td>{p.name || p.code}</td>
+                          <td>{p.productPrice?.toLocaleString()}원</td>
+                          <td>{p.eventPrice != null ? `${p.eventPrice.toLocaleString()}원` : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Modal>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {!isNew && (
@@ -375,12 +718,17 @@ export default function CategoryEditPage() {
               onClick={saveBase}
               disabled={saving}
             >
-              {saving ? <Spinner /> : isNew ? '카테고리 등록' : '저장'}
+              {saving ? <Spinner /> : isNew ? '등록' : '저장'}
             </button>
           </div>
         </div>
+      ) : tabLoading || (!isNew && !transForms[tab]) ? (
+        <Loading label="번역 불러오는 중…" />
       ) : (
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          className="card card-pad"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
           <h3>
             {langLabel(tab)} 번역
             {transDirty(tab) && (
@@ -389,258 +737,112 @@ export default function CategoryEditPage() {
               </span>
             )}
           </h3>
-          {transLoading || !transForms[tab] ? (
-            <Loading label="번역 불러오는 중…" />
-          ) : (
+
+          {!isNew && transMeta && transMeta.notMatchKeys?.length > 0 && (
+            <div className="alert alert-warn">
+              기준 언어가 변경되어 재검수가 필요한 항목이 있습니다. 아래 빨간색으로 표시된 항목을
+              확인해 주세요.
+            </div>
+          )}
+
+          {!isNew && transMeta && (
+            <div
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <div className="hint" style={{ marginBottom: 6 }}>
+                기준 언어({langLabel(BASE_LANGUAGE)}) 원문
+              </div>
+              <div style={{ fontWeight: 600 }}>{transMeta.originName || '-'}</div>
+            </div>
+          )}
+
+          <div className="field">
+            <label>
+              카테고리명 ({langLabel(tab)}) <span className="req">*</span>
+            </label>
+            <input
+              className={
+                !isNew && transMeta?.notMatchKeys?.some((k) => k.key === 'name')
+                  ? 'input-error'
+                  : undefined
+              }
+              value={trans.name}
+              onChange={(e) => setTrans({ ...trans, name: e.target.value })}
+            />
+            {!isNew && transMeta?.notMatchKeys?.some((k) => k.key === 'name') && (
+              <div className="field-error-note">기준 언어가 변경되어 재검수가 필요합니다.</div>
+            )}
+          </div>
+
+          <ImagePicker
+            value={trans.image}
+            onChange={(img) => setTrans({ ...trans, image: img })}
+            label={`이미지 (${langLabel(tab)})`}
+          />
+
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={trans.isView}
+              onChange={(e) => setTrans({ ...trans, isView: e.target.checked })}
+            />
+            이 언어에서 노출
+          </label>
+
+          {!isNew && transMeta?.products && transMeta.products.length > 0 && (
             <>
-              {transMeta && transMeta.notMatchKeys?.length > 0 && (
-                <div className="alert alert-warn">
-                  기준 언어가 변경되어 재검수가 필요한 항목이 있습니다. 아래 빨간색으로 표시된 항목을
-                  확인해 주세요.
-                </div>
-              )}
-              <div
-                style={{
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: 12,
-                }}
-              >
-                <div className="hint" style={{ marginBottom: 6 }}>
-                  기준 언어({langLabel(BASE_LANGUAGE)}) 원문
-                </div>
-                <div style={{ fontWeight: 600 }}>{transMeta?.originName || '-'}</div>
-              </div>
-              <div className="field">
-                <label>카테고리명 ({langLabel(tab)}) <span className="req">*</span></label>
-                <input
-                  className={
-                    transMeta?.notMatchKeys?.some((k) => k.key === 'name') ? 'input-error' : undefined
-                  }
-                  value={trans.name}
-                  onChange={(e) => setTrans({ ...trans, name: e.target.value })}
-                />
-                {transMeta?.notMatchKeys?.some((k) => k.key === 'name') && (
-                  <div className="field-error-note">기준 언어가 변경되어 재검수가 필요합니다.</div>
-                )}
-              </div>
-              <ImagePicker
-                value={trans.image}
-                onChange={(img) => setTrans({ ...trans, image: img })}
-                label={`이미지 (${langLabel(tab)})`}
+              <hr
+                style={{ border: 'none', borderTop: '1px solid var(--border)', width: '100%' }}
               />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                {tab === PUBLIC_LANGUAGE && (
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={transSimple}
-                      onChange={(e) => setTransSimple(e.target.checked)}
-                    />
-                    단순 변경
-                  </label>
-                )}
-                <button
-                  className="btn btn-primary"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={saveTranslation}
-                  disabled={saving}
-                >
-                  {saving ? <Spinner /> : '번역 저장'}
-                </button>
+              <h4>연결 상품 ({langLabel(tab)})</h4>
+              <div className="table-wrap">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th>상품명</th>
+                      <th>정상가</th>
+                      <th>이벤트가</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transMeta.products.map((p) => (
+                      <tr key={p.productId}>
+                        <td>{p.name}</td>
+                        <td>{p.productPrice?.toLocaleString()}원</td>
+                        <td>{p.eventPrice != null ? `${p.eventPrice.toLocaleString()}원` : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
-        </div>
-      )}
 
-      {!isNew && categoryId && <CategoryProductsSection categoryId={categoryId} />}
-    </div>
-  )
-}
-
-function CategoryProductsSection({ categoryId }: { categoryId: number }) {
-  const toast = useToast()
-  const [products, setProducts] = useState<CategoryProduct[]>([])
-  const [loading, setLoading] = useState(true)
-  const [allProducts, setAllProducts] = useState<ProductListItem[]>([])
-  const [addId, setAddId] = useState('')
-  const [addPrice, setAddPrice] = useState('')
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const data = await api.get<CategoryProduct[]>(`/api/v1/product-category/${categoryId}/products`)
-      setProducts(data)
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '연결 상품을 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    load()
-    api
-      .get<Paginated<ProductListItem>>('/api/v1/product/list', { page: 1, rowCount: 200 })
-      .then((r) => setAllProducts(r.data))
-      .catch(() => setAllProducts([]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId])
-
-  const add = async () => {
-    if (!addId) return toast.error('상품을 선택하세요.')
-    try {
-      await api.post(`/api/v1/product-category/${categoryId}/products`, {
-        products: [{ productId: Number(addId), eventPrice: addPrice ? Number(addPrice) : null }],
-      })
-      toast.success('상품이 추가되었습니다.')
-      setAddId('')
-      setAddPrice('')
-      load()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '추가에 실패했습니다.')
-    }
-  }
-
-  const updateRow = (productId: number, patch: Partial<CategoryProduct>) =>
-    setProducts((prev) => prev.map((p) => (p.productId === productId ? { ...p, ...patch } : p)))
-
-  const saveAll = async () => {
-    try {
-      await api.put(`/api/v1/product-category/${categoryId}/products`, {
-        products: products.map((p, i) => ({
-          productId: p.productId,
-          eventPrice: p.eventPrice ?? null,
-          eventDiscountPercent: p.eventDiscountPercent ?? null,
-          order: p.order ?? i + 1,
-        })),
-      })
-      toast.success('연결 상품이 저장되었습니다.')
-      load()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
-    }
-  }
-
-  const remove = async (p: CategoryProduct) => {
-    if (!confirmDelete(p.name)) return
-    try {
-      await api.del(`/api/v1/product-category/${categoryId}/products`, { productIds: [p.productId] })
-      toast.success('삭제되었습니다.')
-      load()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : '삭제에 실패했습니다.')
-    }
-  }
-
-  const available = allProducts.filter(
-    (p) => !products.some((ep) => ep.productId === p.id),
-  )
-
-  return (
-    <div className="card card-pad" style={{ marginTop: 18 }}>
-      <div className="page-head" style={{ marginBottom: 12 }}>
-        <h3>연결 상품</h3>
-        <div className="page-head-actions">
-          <button className="btn btn-primary btn-sm" onClick={saveAll} disabled={loading}>
-            연결 상품 저장
-          </button>
-        </div>
-      </div>
-
-      <div className="toolbar">
-        <div className="field" style={{ flex: 1 }}>
-          <label>상품 추가</label>
-          <select value={addId} onChange={(e) => setAddId(e.target.value)}>
-            <option value="">상품 선택</option>
-            {available.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name || p.code} ({p.productPrice?.toLocaleString()}원)
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label>이벤트가</label>
-          <input
-            type="number"
-            value={addPrice}
-            onChange={(e) => setAddPrice(e.target.value)}
-            placeholder="선택"
-          />
-        </div>
-        <button className="btn" onClick={add}>
-          추가
-        </button>
-      </div>
-
-      {loading ? (
-        <Spinner />
-      ) : products.length === 0 ? (
-        <Empty message="연결된 상품이 없습니다." />
-      ) : (
-        <div className="table-wrap">
-          <table className="data">
-            <thead>
-              <tr>
-                <th>상품</th>
-                <th>정상가</th>
-                <th style={{ width: 130 }}>이벤트가</th>
-                <th style={{ width: 110 }}>할인율(%)</th>
-                <th style={{ width: 90 }}>순서</th>
-                <th style={{ width: 80 }}>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => (
-                <tr key={p.productId}>
-                  <td>
-                    {p.name}
-                    <div className="hint">{p.categoryName || '-'}</div>
-                  </td>
-                  <td>{p.productPrice?.toLocaleString()}원</td>
-                  <td>
-                    <input
-                      type="number"
-                      value={p.eventPrice ?? ''}
-                      onChange={(e) =>
-                        updateRow(p.productId, {
-                          eventPrice: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={p.eventDiscountPercent ?? ''}
-                      onChange={(e) =>
-                        updateRow(p.productId, {
-                          eventDiscountPercent: e.target.value ? Number(e.target.value) : null,
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={p.order ?? ''}
-                      onChange={(e) =>
-                        updateRow(p.productId, { order: Number(e.target.value) })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <button className="btn btn-sm btn-danger" onClick={() => remove(p)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {!isNew && tab === PUBLIC_LANGUAGE && (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={isSimpleChange}
+                  onChange={(e) => setIsSimpleChange(e.target.checked)}
+                />
+                단순 변경
+              </label>
+            )}
+            <button
+              className="btn btn-primary"
+              style={{ marginLeft: 'auto' }}
+              onClick={isNew ? saveBase : saveTranslation}
+              disabled={saving}
+            >
+              {saving ? <Spinner /> : isNew ? '등록' : '번역 저장'}
+            </button>
+          </div>
         </div>
       )}
     </div>

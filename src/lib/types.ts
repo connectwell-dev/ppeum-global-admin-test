@@ -95,6 +95,7 @@ export interface ProductListItem {
   startDate: string | null
   endDate: string | null
   isActive: boolean
+  productGroupId: number | null
   notInputLanguages: Language[]
   createdAt: string
   updatedAt: string
@@ -120,7 +121,7 @@ export interface TranslationView {
   notMatchKeys: NotMatchKey[]
 }
 
-// 카테고리 (기존 이벤트)
+// 카테고리
 export interface CategoryListItem {
   id: number
   code: string
@@ -149,6 +150,7 @@ export interface CategoryDetail {
   reservationStartDate: string | null
   reservationEndDate: string | null
   weekDay: WeekDayType[]
+  products: CategoryProductItem[]
   createdAt: string
   updatedAt: string
 }
@@ -163,11 +165,23 @@ export interface CategoryProduct {
   productPrice: number
 }
 
+export interface CategoryProductItem {
+  productId: number
+  name: string
+  productPrice: number
+  eventPrice: number | null
+  promotionPrice: number | null
+  eventDiscountPercent: number
+  order: number
+}
+
 export interface CategoryTranslationView {
   name: string
   originName: string
   image: ImageRef | null
   originImage: ImageRef | null
+  isView: boolean
+  products: CategoryProductItem[]
   notMatchKeys: NotMatchKey[]
 }
 
@@ -229,6 +243,7 @@ export interface PopupBasicCategoryDetail {
 }
 
 // 상세페이지 설명
+// 상세페이지
 export interface ProductDetailInfoListItem {
   id: number
   code: string

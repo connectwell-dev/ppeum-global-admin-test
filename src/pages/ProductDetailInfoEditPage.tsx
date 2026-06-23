@@ -4,8 +4,8 @@ import { api, ApiError } from '../lib/api'
 import { useToast } from '../lib/toast'
 import {
   BASE_LANGUAGE,
-  LANGUAGES,
   DETAIL_INFO_SHORT_DESC_KEYS,
+  LANGUAGES,
   PUBLIC_LANGUAGE,
   langLabel,
 } from '../lib/constants'
@@ -19,7 +19,7 @@ import type {
 import { ChipsInput, KeyValueEditor, Loading, Spinner } from '../components/ui'
 import ImagePicker from '../components/ImagePicker'
 
-interface DetailForm {
+interface OpForm {
   title: string
   description: string
   shortDescription: KeyValue[]
@@ -29,7 +29,7 @@ interface DetailForm {
   note: string
 }
 
-const emptyForm: DetailForm = {
+const emptyForm: OpForm = {
   title: '',
   description: '',
   shortDescription: [],
@@ -49,12 +49,12 @@ const withDefaultShortDesc = (lang: Language, items: KeyValue[]): KeyValue[] => 
   return [...fixed, ...extras]
 }
 
-const initialForm = (lang: Language): DetailForm => ({
+const initialForm = (lang: Language): OpForm => ({
   ...emptyForm,
   shortDescription: withDefaultShortDesc(lang, []),
 })
 
-const toForm = (d: ProductDetailInfoDetail, lang: Language): DetailForm => ({
+const toForm = (d: ProductDetailInfoDetail, lang: Language): OpForm => ({
   title: d.title ?? '',
   description: d.description ?? '',
   shortDescription: withDefaultShortDesc(lang, d.shortDescription ?? []),
@@ -64,12 +64,12 @@ const toForm = (d: ProductDetailInfoDetail, lang: Language): DetailForm => ({
   note: d.note ?? '',
 })
 
-const sameForm = (a: DetailForm, b: DetailForm) => JSON.stringify(a) === JSON.stringify(b)
+const sameForm = (a: OpForm, b: OpForm) => JSON.stringify(a) === JSON.stringify(b)
 
 export default function ProductDetailInfoEditPage() {
   const { id } = useParams()
   const isNew = !id
-  const detailId = id ? Number(id) : null
+  const opId = id ? Number(id) : null
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -78,17 +78,17 @@ export default function ProductDetailInfoEditPage() {
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<Language>(BASE_LANGUAGE)
 
-  const [forms, setForms] = useState<Record<string, DetailForm>>(
+  const [forms, setForms] = useState<Record<string, OpForm>>(
     isNew ? { [BASE_LANGUAGE]: initialForm(BASE_LANGUAGE) } : {},
   )
-  const [originals, setOriginals] = useState<Record<string, DetailForm>>(
+  const [originals, setOriginals] = useState<Record<string, OpForm>>(
     isNew ? { [BASE_LANGUAGE]: initialForm(BASE_LANGUAGE) } : {},
   )
   const [notMatchMap, setNotMatchMap] = useState<Record<string, NotMatchKey[]>>({})
   const [isSimpleChange, setIsSimpleChange] = useState(false)
 
   const fetchDetail = (language: Language) =>
-    api.get<ProductDetailInfoDetail>(`/api/v1/product-detail-info/${detailId}`, { language })
+    api.get<ProductDetailInfoDetail>(`/api/v1/product-detail-info/${opId}`, { language })
 
   const loadLang = async (language: Language) => {
     const d = await fetchDetail(language)
@@ -101,7 +101,7 @@ export default function ProductDetailInfoEditPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        if (detailId) await loadLang(BASE_LANGUAGE)
+        if (opId) await loadLang(BASE_LANGUAGE)
       } catch (e) {
         toast.error(e instanceof ApiError ? e.message : '정보를 불러오지 못했습니다.')
       } finally {
@@ -109,7 +109,7 @@ export default function ProductDetailInfoEditPage() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailId])
+  }, [opId])
 
   const switchTab = async (next: Language) => {
     if (next === tab) return
@@ -124,7 +124,7 @@ export default function ProductDetailInfoEditPage() {
       return
     }
     setTab(next)
-    if (!detailId) return
+    if (!opId) return
     if (!forms[next]) {
       setTabLoading(true)
       try {
@@ -146,18 +146,18 @@ export default function ProductDetailInfoEditPage() {
         setOriginals((prev) => ({ ...prev, [next]: f }))
       }
     } catch {
-      // silent
+      // 알림 갱신 실패는 조용히 무시
     }
   }
 
   const current = forms[tab]
-  const patch = (p: Partial<DetailForm>) =>
+  const patch = (p: Partial<OpForm>) =>
     setForms((prev) => ({ ...prev, [tab]: { ...prev[tab], ...p } }))
 
   const isDirty = (lang: Language) =>
     !!forms[lang] && !!originals[lang] && !sameForm(forms[lang], originals[lang])
 
-  const buildPayload = (f: DetailForm) => ({
+  const buildPayload = (f: OpForm) => ({
     title: f.title.trim() || undefined,
     description: f.description || undefined,
     shortDescription: f.shortDescription.filter((s) => s.key.trim() !== ''),
@@ -167,7 +167,7 @@ export default function ProductDetailInfoEditPage() {
     note: f.note || undefined,
   })
 
-  const hasContent = (f: DetailForm) =>
+  const hasContent = (f: OpForm) =>
     f.title.trim() !== '' ||
     f.description.trim() !== '' ||
     f.hashtag.length > 0 ||
@@ -209,14 +209,14 @@ export default function ProductDetailInfoEditPage() {
     try {
       const payload = buildPayload(f)
       if (tab === BASE_LANGUAGE) {
-        await api.put(`/api/v1/product-detail-info/${detailId}`, { ...payload, isSimpleChange })
+        await api.put(`/api/v1/product-detail-info/${opId}`, { ...payload, isSimpleChange })
       } else if (tab === PUBLIC_LANGUAGE) {
-        await api.put(`/api/v1/product-detail-info/${detailId}/public-translation`, {
+        await api.put(`/api/v1/product-detail-info/${opId}/public-translation`, {
           ...payload,
           isSimpleChange,
         })
       } else {
-        await api.put(`/api/v1/product-detail-info/${detailId}/translation`, {
+        await api.put(`/api/v1/product-detail-info/${opId}/translation`, {
           language: tab,
           ...payload,
         })
@@ -240,7 +240,7 @@ export default function ProductDetailInfoEditPage() {
   const baseForm = forms[BASE_LANGUAGE]
   const notMatchKeys = notMatchMap[tab] ?? []
 
-  const REVIEW_NOTE = '기준 언어가 변경되어 재검수가 필요합니다.'
+  const notMatchMsgMap = new Map(notMatchKeys.map((k) => [k.key, k.message]))
   const notMatchSet = new Set(notMatchKeys.map((k) => k.key))
   const hasErr = (key: string) => notMatchSet.has(key)
   const errIndexes = (prefix: string) => {
@@ -308,8 +308,12 @@ export default function ProductDetailInfoEditPage() {
 
           {notMatchKeys.length > 0 && (
             <div className="alert alert-warn">
-              기준 언어가 변경되어 재검수가 필요한 항목이 있습니다. 아래 빨간색으로 표시된 항목을 확인해
-              주세요.
+              재검수가 필요한 항목이 있습니다:
+              <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+                {notMatchKeys.map((k, i) => (
+                  <li key={i}><b>{k.key}</b>: {k.message}</li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -339,7 +343,7 @@ export default function ProductDetailInfoEditPage() {
               value={current.title}
               onChange={(e) => patch({ title: e.target.value })}
             />
-            {hasErr('title') && <div className="field-error-note">{REVIEW_NOTE}</div>}
+            {hasErr('title') && <div className="field-error-note">{notMatchMsgMap.get('title')}</div>}
           </div>
           <div className="field">
             <label>설명</label>
@@ -348,7 +352,7 @@ export default function ProductDetailInfoEditPage() {
               value={current.description}
               onChange={(e) => patch({ description: e.target.value })}
             />
-            {hasErr('description') && <div className="field-error-note">{REVIEW_NOTE}</div>}
+            {hasErr('description') && <div className="field-error-note">{notMatchMsgMap.get('description')}</div>}
           </div>
           <div className="field">
             <label>요약 정보</label>
@@ -360,11 +364,11 @@ export default function ProductDetailInfoEditPage() {
               value={current.shortDescription}
               onChange={(v) => patch({ shortDescription: v })}
               lockedKeys={DETAIL_INFO_SHORT_DESC_KEYS[tab] ?? []}
-              valuePlaceholder="설명"
+              valuePlaceholder="시술 설명"
               errorCells={shortDescErr}
             />
             {shortDescErr.size > 0 && (
-              <div className="field-error-note">{REVIEW_NOTE} (빨간 항목 확인)</div>
+              <div className="field-error-note">빨간 항목을 확인해 주세요.</div>
             )}
           </div>
           <ImagePicker value={current.image} onChange={(img) => patch({ image: img })} />
@@ -377,7 +381,7 @@ export default function ProductDetailInfoEditPage() {
               errorIndexes={hashtagErr}
             />
             {hashtagErr.size > 0 && (
-              <div className="field-error-note">{REVIEW_NOTE} (빨간 항목 확인)</div>
+              <div className="field-error-note">빨간 항목을 확인해 주세요.</div>
             )}
           </div>
           <div className="field">
@@ -389,7 +393,7 @@ export default function ProductDetailInfoEditPage() {
               errorIndexes={cautionErr}
             />
             {cautionErr.size > 0 && (
-              <div className="field-error-note">{REVIEW_NOTE} (빨간 항목 확인)</div>
+              <div className="field-error-note">빨간 항목을 확인해 주세요.</div>
             )}
           </div>
           <div className="field">
@@ -400,7 +404,7 @@ export default function ProductDetailInfoEditPage() {
               style={{ minHeight: 60 }}
               onChange={(e) => patch({ note: e.target.value })}
             />
-            {hasErr('note') && <div className="field-error-note">{REVIEW_NOTE}</div>}
+            {hasErr('note') && <div className="field-error-note">{notMatchMsgMap.get('note')}</div>}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

@@ -21,14 +21,14 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: '상품 관리',
     items: [
       { to: '/products', label: '상품', icon: '📦' },
-      { to: '/categories', label: '카테고리', icon: '🗂️' },
       { to: '/product-groups', label: '상품 그룹', icon: '📋' },
+      { to: '/categories', label: '카테고리', icon: '🎉' },
     ],
   },
   {
     section: '콘텐츠',
     items: [
-      { to: '/product-detail-info', label: '상세페이지 설정', icon: '📄' },
+      { to: '/product-detail-info', label: '상세페이지 설정', icon: '💉' },
       { to: '/images', label: '이미지', icon: '🖼️' },
     ],
   },
@@ -45,8 +45,8 @@ const NAV: { section: string; items: NavItem[] }[] = [
 const TITLES: Record<string, string> = {
   '/': '대시보드',
   '/products': '상품 관리',
-  '/categories': '카테고리',
   '/product-groups': '상품 그룹',
+  '/categories': '카테고리',
   '/product-detail-info': '상세페이지 설정',
   '/images': '이미지',
   '/policy': '약관 설정',
