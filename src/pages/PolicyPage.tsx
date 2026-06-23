@@ -3,7 +3,7 @@ import { api, ApiError } from '../lib/api'
 import { useToast } from '../lib/toast'
 import { useLang } from '../lib/lang'
 import { langLabel } from '../lib/constants'
-import type { PolicyListItem, PolicyDetail } from '../lib/types'
+import type { PolicyCategoryItem, PolicyCategoryDetail } from '../lib/types'
 import { Empty, Loading, Modal } from '../components/ui'
 
 const POLICY_TYPE_LABEL: Record<string, string> = {
@@ -15,20 +15,21 @@ export default function PolicyPage() {
   const toast = useToast()
   const { lang } = useLang()
 
-  const [items, setItems] = useState<PolicyListItem[]>([])
+  const [items, setItems] = useState<PolicyCategoryItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [detail, setDetail] = useState<PolicyDetail | null>(null)
+  const [detail, setDetail] = useState<PolicyCategoryDetail | null>(null)
+  const [selectedPolicyId, setSelectedPolicyId] = useState<number | null>(null)
   const [editNote, setEditNote] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<{ total: number; policy: PolicyListItem[] }>(
+      const res = await api.get<{ total: number; policyCategory: PolicyCategoryItem[] }>(
         '/api/v1/policy-setting/list',
       )
-      setItems(res.policy)
+      setItems(res.policyCategory)
       setTotal(res.total)
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '약관 목록을 불러오지 못했습니다.')
@@ -42,24 +43,37 @@ export default function PolicyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
-  const openDetail = async (id: number) => {
+  const openDetail = async (categoryId: number) => {
     try {
-      const res = await api.get<PolicyDetail>(`/api/v1/policy-setting/${id}`)
+      const res = await api.get<PolicyCategoryDetail>(`/api/v1/policy-setting/category/${categoryId}`)
       setDetail(res)
-      setEditNote(res.note)
+      if (res.policies.length > 0) {
+        setSelectedPolicyId(res.policies[0].id)
+        setEditNote(res.policies[0].note)
+      } else {
+        setSelectedPolicyId(null)
+        setEditNote('')
+      }
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '약관 상세를 불러오지 못했습니다.')
     }
   }
 
+  const selectPolicy = (policyId: number) => {
+    const policy = detail?.policies.find((p) => p.id === policyId)
+    if (policy) {
+      setSelectedPolicyId(policy.id)
+      setEditNote(policy.note)
+    }
+  }
+
   const handleSave = async () => {
-    if (!detail) return
+    if (!selectedPolicyId) return
     setSaving(true)
     try {
-      await api.put(`/api/v1/policy-setting/${detail.id}`, { note: editNote })
+      await api.put(`/api/v1/policy-setting/${selectedPolicyId}`, { note: editNote })
       toast.success('저장되었습니다.')
-      setDetail(null)
-      load()
+      if (detail) await openDetail(detail.id)
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
     } finally {
@@ -128,14 +142,16 @@ export default function PolicyPage() {
           onClose={() => setDetail(null)}
           size="lg"
           footer={
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn" onClick={() => setDetail(null)}>
-                취소
-              </button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? '저장 중…' : '저장'}
-              </button>
-            </div>
+            selectedPolicyId ? (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => setDetail(null)}>
+                  취소
+                </button>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                  {saving ? '저장 중…' : '저장'}
+                </button>
+              </div>
+            ) : undefined
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -147,35 +163,35 @@ export default function PolicyPage() {
               <label>약관 타입</label>
               <span>{POLICY_TYPE_LABEL[detail.type] ?? detail.type}</span>
             </div>
-            <div className="field">
-              <label>내용</label>
-              <textarea
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                rows={15}
-                style={{
-                  width: '100%',
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  fontSize: 14,
-                }}
-              />
-            </div>
-            {detail.createdDates.length > 0 && (
+            {detail.policies.length > 0 && (
               <div className="field">
-                <label>이력</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {detail.createdDates.map((d) => (
-                    <span
-                      key={d.id}
-                      className={`badge ${d.id === detail.id ? 'badge-green' : 'badge-gray'}`}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => openDetail(d.id)}
-                    >
-                      {d.createdAt}
-                    </span>
+                <label>과거내역</label>
+                <select
+                  value={selectedPolicyId ?? ''}
+                  onChange={(e) => selectPolicy(Number(e.target.value))}
+                >
+                  {detail.policies.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.createdAt}
+                    </option>
                   ))}
-                </div>
+                </select>
+              </div>
+            )}
+            {selectedPolicyId && (
+              <div className="field">
+                <label>내용</label>
+                <textarea
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  rows={15}
+                  style={{
+                    width: '100%',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                  }}
+                />
               </div>
             )}
           </div>

@@ -183,44 +183,49 @@ export interface ProductGroup {
 // 약관
 export type PolicyType = 'terms' | 'privacy'
 
-export interface PolicyListItem {
+export interface PolicyCategoryItem {
   id: number
   language: Language
   type: PolicyType
 }
 
-export interface PolicyCreatedDate {
+export interface PolicyItem {
   id: number
+  note: string
   createdAt: string
 }
 
-export interface PolicyDetail {
+export interface PolicyCategoryDetail {
   id: number
   language: Language
   type: PolicyType
-  note: string
-  createdDates: PolicyCreatedDate[]
+  policies: PolicyItem[]
 }
 
 // 기본 팝업
 export type PopupBasicType = 'pc' | 'mobile'
 
-export interface BasicPopupListItem {
+export interface PopupBasicCategoryItem {
   id: number
   language: Language
   type: PopupBasicType
 }
 
-export interface BasicPopupDetail {
+export interface PopupBasicItem {
   id: number
-  language: Language
-  type: PopupBasicType
   startAt: string
   startTime: string
   endAt: string
   endTime: string
+  createdAt: string
   images: { path: string }[]
-  createdDates: PolicyCreatedDate[]
+}
+
+export interface PopupBasicCategoryDetail {
+  id: number
+  language: Language
+  type: PopupBasicType
+  popupBasics: PopupBasicItem[]
 }
 
 // 상세페이지 설명
