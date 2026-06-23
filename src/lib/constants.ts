@@ -36,6 +36,7 @@ export const CATEGORY_TYPES: { value: ProductCategoryType; label: string }[] = [
   { value: 'promotion', label: '프로모션' },
 ]
 
+// 시술 설명 요약(shortDescription) 언어별 고정 키 — 서버 검증과 동일해야 함
 export const DETAIL_INFO_SHORT_DESC_KEYS: Record<Language, string[]> = {
   ja: ['麻酔時間', '手術時間', '回復期間', '持続期間', '再手術周期'],
   ko: ['마취시간', '시술시간', '회복기간', '유지시간', '재시술주기'],
