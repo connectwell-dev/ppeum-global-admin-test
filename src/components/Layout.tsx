@@ -33,6 +33,13 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { to: '/images', label: '이미지', icon: '🖼️' },
     ],
   },
+  {
+    section: '설정',
+    items: [
+      { to: '/policy', label: '약관 설정', icon: '📄' },
+      { to: '/basic-popup', label: '기본 팝업', icon: '🪟' },
+    ],
+  },
 ]
 
 const TITLES: Record<string, string> = {
@@ -43,6 +50,8 @@ const TITLES: Record<string, string> = {
   '/events': '이벤트',
   '/operation-info': '시술 설명',
   '/images': '이미지',
+  '/policy': '약관 설정',
+  '/basic-popup': '기본 팝업',
 }
 
 export default function Layout() {

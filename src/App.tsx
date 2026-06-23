@@ -12,6 +12,8 @@ import OperationInfoPage from './pages/OperationInfoPage'
 import OperationInfoEditPage from './pages/OperationInfoEditPage'
 import ImagesPage from './pages/ImagesPage'
 import ProductGroupsPage from './pages/ProductGroupsPage'
+import PolicyPage from './pages/PolicyPage'
+import BasicPopupPage from './pages/BasicPopupPage'
 
 export default function App() {
   return (
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="/operation-info/:id" element={<OperationInfoEditPage />} />
         <Route path="/product-groups" element={<ProductGroupsPage />} />
         <Route path="/images" element={<ImagesPage />} />
+        <Route path="/policy" element={<PolicyPage />} />
+        <Route path="/basic-popup" element={<BasicPopupPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

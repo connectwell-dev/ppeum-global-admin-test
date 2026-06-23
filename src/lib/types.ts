@@ -200,6 +200,49 @@ export interface ProductGroup {
   updatedAt: string
 }
 
+// 약관
+export type PolicyType = 'terms' | 'privacy'
+
+export interface PolicyListItem {
+  id: number
+  language: Language
+  type: PolicyType
+}
+
+export interface PolicyCreatedDate {
+  id: number
+  createdAt: string
+}
+
+export interface PolicyDetail {
+  id: number
+  language: Language
+  type: PolicyType
+  note: string
+  createdDates: PolicyCreatedDate[]
+}
+
+// 기본 팝업
+export type PopupBasicType = 'pc' | 'mobile'
+
+export interface BasicPopupListItem {
+  id: number
+  language: Language
+  type: PopupBasicType
+}
+
+export interface BasicPopupDetail {
+  id: number
+  language: Language
+  type: PopupBasicType
+  startAt: string
+  startTime: string
+  endAt: string
+  endTime: string
+  images: { path: string }[]
+  createdDates: PolicyCreatedDate[]
+}
+
 // 시술 설명
 export interface OperationInfoListItem {
   id: number
