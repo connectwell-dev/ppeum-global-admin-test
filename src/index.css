@@ -485,6 +485,9 @@ table.data td.wrap {
 .modal.lg {
   max-width: 820px;
 }
+.modal.xl {
+  max-width: 1100px;
+}
 .modal-head {
   display: flex;
   align-items: center;

@@ -37,6 +37,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { to: '/policy', label: '약관 설정', icon: '📄' },
       { to: '/basic-popup', label: '기본 팝업', icon: '🪟' },
+      { to: '/main-popup', label: '메인 팝업', icon: '🖼️' },
       { to: '/hospital-work-time', label: '병원 예약 설정', icon: '🏥' },
     ],
   },
@@ -51,6 +52,7 @@ const TITLES: Record<string, string> = {
   '/images': '이미지',
   '/policy': '약관 설정',
   '/basic-popup': '기본 팝업',
+  '/main-popup': '메인 팝업',
   '/hospital-work-time': '병원 예약 설정',
 }
 
