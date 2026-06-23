@@ -242,7 +242,36 @@ export interface PopupBasicCategoryDetail {
   popupBasics: PopupBasicItem[]
 }
 
-// 상세페이지 설명
+// 메인 팝업
+export type PopupMainType = 'pc' | 'mobile'
+
+export interface PopupMainCategoryItem {
+  id: number
+  language: Language
+  type: PopupMainType
+}
+
+export interface PopupMainItem {
+  id: number
+  title: string
+  link: string | null
+  startAt: string
+  startTime: string
+  endAt: string
+  endTime: string
+  isNewTab: boolean
+  order: number
+  createdAt: string
+  images: { path: string }[]
+}
+
+export interface PopupMainCategoryDetail {
+  id: number
+  language: Language
+  type: PopupMainType
+  popupMains: PopupMainItem[]
+}
+
 // 상세페이지
 export interface ProductDetailInfoListItem {
   id: number

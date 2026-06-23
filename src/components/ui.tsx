@@ -28,7 +28,7 @@ export function Modal({
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
-  size?: 'lg'
+  size?: 'lg' | 'xl'
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -39,7 +39,7 @@ export function Modal({
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
-        className={`modal${size === 'lg' ? ' lg' : ''}`}
+        className={`modal${size ? ` ${size}` : ''}`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="modal-head">
