@@ -4,20 +4,20 @@ import { api, ApiError } from '../lib/api'
 import { useToast } from '../lib/toast'
 import {
   BASE_LANGUAGE,
-  EVENT_TYPES,
+  CATEGORY_TYPES,
   LANGUAGES,
   PUBLIC_LANGUAGE,
   WEEK_DAYS,
   langLabel,
 } from '../lib/constants'
 import type {
-  EventDetail,
-  EventProduct,
-  EventTranslationView,
+  CategoryDetail,
+  CategoryProduct,
+  CategoryTranslationView,
   ImageRef,
   Language,
   Paginated,
-  ProductEventType,
+  ProductCategoryType,
   ProductListItem,
   WeekDayType,
 } from '../lib/types'
@@ -25,7 +25,7 @@ import { Empty, Loading, Spinner, confirmDelete } from '../components/ui'
 import ImagePicker from '../components/ImagePicker'
 
 interface BaseForm {
-  eventType: ProductEventType
+  categoryType: ProductCategoryType
   startDate: string
   endDate: string
   reservationStartDate: string
@@ -37,7 +37,7 @@ interface BaseForm {
 }
 
 const emptyBase: BaseForm = {
-  eventType: 'general',
+  categoryType: 'general',
   startDate: '',
   endDate: '',
   reservationStartDate: '',
@@ -54,10 +54,10 @@ const emptyTrans: TransForm = { name: '', image: null }
 
 const sameJSON = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
-export default function EventEditPage() {
+export default function CategoryEditPage() {
   const { id } = useParams()
   const isNew = !id
-  const eventId = id ? Number(id) : null
+  const categoryId = id ? Number(id) : null
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -71,17 +71,17 @@ export default function EventEditPage() {
   // 언어별 번역 폼을 클라이언트에 보존한다. 탭을 옮겼다 돌아와도 입력 중 내용이 유지된다.
   const [transForms, setTransForms] = useState<Record<string, TransForm>>({})
   const [transOriginals, setTransOriginals] = useState<Record<string, TransForm>>({})
-  const [transMetas, setTransMetas] = useState<Record<string, EventTranslationView>>({})
+  const [transMetas, setTransMetas] = useState<Record<string, CategoryTranslationView>>({})
   const [transLoading, setTransLoading] = useState(false)
   const [transSimple, setTransSimple] = useState(false)
 
   useEffect(() => {
     ;(async () => {
       try {
-        if (eventId) {
-          const d = await api.get<EventDetail>(`/api/v1/product-event/${eventId}`)
+        if (categoryId) {
+          const d = await api.get<CategoryDetail>(`/api/v1/product-category/${categoryId}`)
           const loaded: BaseForm = {
-            eventType: d.eventType,
+            categoryType: d.categoryType,
             startDate: d.startDate?.slice(0, 10) ?? '',
             endDate: d.endDate?.slice(0, 10) ?? '',
             reservationStartDate: d.reservationStartDate?.slice(0, 10) ?? '',
@@ -101,14 +101,14 @@ export default function EventEditPage() {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId])
+  }, [categoryId])
 
   // 번역 1건을 서버에서 불러와 메타(재검수 알림)와 폼을 갱신한다.
   // 저장하지 않은 수정 내용은 보존하기 위해, force가 아니고 수정 중이면 폼/원본은 건드리지 않는다.
   const loadTranslation = async (language: Language, opts?: { force?: boolean }) => {
-    if (!eventId) return
-    const v = await api.get<EventTranslationView>(
-      `/api/v1/product-event/${eventId}/translation`,
+    if (!categoryId) return
+    const v = await api.get<CategoryTranslationView>(
+      `/api/v1/product-category/${categoryId}/translation`,
       { language },
     )
     setTransMetas((prev) => ({ ...prev, [language]: v }))
@@ -127,7 +127,7 @@ export default function EventEditPage() {
     if (next === tab) return
     setTab(next)
     setTransSimple(false)
-    if (isNew || next === BASE_LANGUAGE || !eventId) return
+    if (isNew || next === BASE_LANGUAGE || !categoryId) return
     if (!transForms[next]) {
       // 처음 여는 탭: 전체 로드
       setTransLoading(true)
@@ -150,11 +150,11 @@ export default function EventEditPage() {
   const tabDirty = (l: Language) => (l === BASE_LANGUAGE ? baseDirty : transDirty(l))
 
   const saveBase = async () => {
-    if (!base.name.trim()) return toast.error(`기준 언어(${langLabel(BASE_LANGUAGE)}) 이벤트명은 필수입니다.`)
+    if (!base.name.trim()) return toast.error(`기준 언어(${langLabel(BASE_LANGUAGE)}) 카테고리명은 필수입니다.`)
     setSaving(true)
     try {
       const common = {
-        eventType: base.eventType,
+        categoryType: base.categoryType,
         startDate: base.startDate || null,
         endDate: base.endDate || null,
         reservationStartDate: base.reservationStartDate || null,
@@ -163,16 +163,16 @@ export default function EventEditPage() {
         isActive: base.isActive,
       }
       if (isNew) {
-        const res = await api.post<{ id: number }>('/api/v1/product-event', {
+        const res = await api.post<{ id: number }>('/api/v1/product-category', {
           ...common,
-          eventTranslations: [
+          categoryTranslations: [
             { language: BASE_LANGUAGE, name: base.name.trim(), imageCode: base.image?.code },
           ],
         })
-        toast.success('이벤트가 등록되었습니다.')
-        navigate(`/events/${res.id}`, { replace: true })
+        toast.success('카테고리가 등록되었습니다.')
+        navigate(`/categories/${res.id}`, { replace: true })
       } else {
-        await api.put(`/api/v1/product-event/${eventId}`, {
+        await api.put(`/api/v1/product-category/${categoryId}`, {
           ...common,
           name: base.name.trim(),
           imageCode: base.image?.code,
@@ -189,19 +189,19 @@ export default function EventEditPage() {
   }
 
   const saveTranslation = async () => {
-    if (!eventId) return
+    if (!categoryId) return
     const f = transForms[tab] ?? emptyTrans
-    if (!f.name.trim()) return toast.error('이벤트명을 입력하세요.')
+    if (!f.name.trim()) return toast.error('카테고리명을 입력하세요.')
     setSaving(true)
     try {
       const payload = { language: tab, name: f.name.trim(), imageCode: f.image?.code }
       if (tab === PUBLIC_LANGUAGE) {
-        await api.put(`/api/v1/product-event/${eventId}/public-translation`, {
+        await api.put(`/api/v1/product-category/${categoryId}/public-translation`, {
           ...payload,
           isSimpleChange: transSimple,
         })
       } else {
-        await api.put(`/api/v1/product-event/${eventId}/translation`, payload)
+        await api.put(`/api/v1/product-category/${categoryId}/translation`, payload)
       }
       toast.success(`${langLabel(tab)} 번역이 저장되었습니다.`)
       // 저장 성공 → 서버 기준으로 다시 불러와 재검수 알림/원본 스냅샷을 갱신한다.
@@ -223,7 +223,7 @@ export default function EventEditPage() {
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/events')}>
           ← 목록
         </button>
-        <h2>{isNew ? '이벤트 등록' : '이벤트 수정'}</h2>
+        <h2>{isNew ? '카테고리 등록' : '카테고리 수정'}</h2>
       </div>
 
       {!isNew && (
@@ -264,10 +264,10 @@ export default function EventEditPage() {
             <div className="field">
               <label>유형 <span className="req">*</span></label>
               <select
-                value={base.eventType}
-                onChange={(e) => setBase({ ...base, eventType: e.target.value as ProductEventType })}
+                value={base.categoryType}
+                onChange={(e) => setBase({ ...base, categoryType: e.target.value as ProductCategoryType })}
               >
-                {EVENT_TYPES.map((t) => (
+                {CATEGORY_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
                   </option>
@@ -349,7 +349,7 @@ export default function EventEditPage() {
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', width: '100%' }} />
 
           <div className="field">
-            <label>이벤트명 ({langLabel(BASE_LANGUAGE)}) <span className="req">*</span></label>
+            <label>카테고리명 ({langLabel(BASE_LANGUAGE)}) <span className="req">*</span></label>
             <input value={base.name} onChange={(e) => setBase({ ...base, name: e.target.value })} />
           </div>
           <ImagePicker
@@ -375,7 +375,7 @@ export default function EventEditPage() {
               onClick={saveBase}
               disabled={saving}
             >
-              {saving ? <Spinner /> : isNew ? '이벤트 등록' : '저장'}
+              {saving ? <Spinner /> : isNew ? '카테고리 등록' : '저장'}
             </button>
           </div>
         </div>
@@ -413,7 +413,7 @@ export default function EventEditPage() {
                 <div style={{ fontWeight: 600 }}>{transMeta?.originName || '-'}</div>
               </div>
               <div className="field">
-                <label>이벤트명 ({langLabel(tab)}) <span className="req">*</span></label>
+                <label>카테고리명 ({langLabel(tab)}) <span className="req">*</span></label>
                 <input
                   className={
                     transMeta?.notMatchKeys?.some((k) => k.key === 'name') ? 'input-error' : undefined
@@ -455,14 +455,14 @@ export default function EventEditPage() {
         </div>
       )}
 
-      {!isNew && eventId && <EventProductsSection eventId={eventId} />}
+      {!isNew && categoryId && <CategoryProductsSection categoryId={categoryId} />}
     </div>
   )
 }
 
-function EventProductsSection({ eventId }: { eventId: number }) {
+function CategoryProductsSection({ categoryId }: { categoryId: number }) {
   const toast = useToast()
-  const [products, setProducts] = useState<EventProduct[]>([])
+  const [products, setProducts] = useState<CategoryProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [allProducts, setAllProducts] = useState<ProductListItem[]>([])
   const [addId, setAddId] = useState('')
@@ -471,7 +471,7 @@ function EventProductsSection({ eventId }: { eventId: number }) {
   const load = async () => {
     setLoading(true)
     try {
-      const data = await api.get<EventProduct[]>(`/api/v1/product-event/${eventId}/products`)
+      const data = await api.get<CategoryProduct[]>(`/api/v1/product-category/${categoryId}/products`)
       setProducts(data)
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : '연결 상품을 불러오지 못했습니다.')
@@ -487,12 +487,12 @@ function EventProductsSection({ eventId }: { eventId: number }) {
       .then((r) => setAllProducts(r.data))
       .catch(() => setAllProducts([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId])
+  }, [categoryId])
 
   const add = async () => {
     if (!addId) return toast.error('상품을 선택하세요.')
     try {
-      await api.post(`/api/v1/product-event/${eventId}/products`, {
+      await api.post(`/api/v1/product-category/${categoryId}/products`, {
         products: [{ productId: Number(addId), eventPrice: addPrice ? Number(addPrice) : null }],
       })
       toast.success('상품이 추가되었습니다.')
@@ -504,12 +504,12 @@ function EventProductsSection({ eventId }: { eventId: number }) {
     }
   }
 
-  const updateRow = (productId: number, patch: Partial<EventProduct>) =>
+  const updateRow = (productId: number, patch: Partial<CategoryProduct>) =>
     setProducts((prev) => prev.map((p) => (p.productId === productId ? { ...p, ...patch } : p)))
 
   const saveAll = async () => {
     try {
-      await api.put(`/api/v1/product-event/${eventId}/products`, {
+      await api.put(`/api/v1/product-category/${categoryId}/products`, {
         products: products.map((p, i) => ({
           productId: p.productId,
           eventPrice: p.eventPrice ?? null,
@@ -524,10 +524,10 @@ function EventProductsSection({ eventId }: { eventId: number }) {
     }
   }
 
-  const remove = async (p: EventProduct) => {
+  const remove = async (p: CategoryProduct) => {
     if (!confirmDelete(p.name)) return
     try {
-      await api.del(`/api/v1/product-event/${eventId}/products`, { productIds: [p.productId] })
+      await api.del(`/api/v1/product-category/${categoryId}/products`, { productIds: [p.productId] })
       toast.success('삭제되었습니다.')
       load()
     } catch (e) {

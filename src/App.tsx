@@ -6,10 +6,9 @@ import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductEditPage from './pages/ProductEditPage'
 import CategoriesPage from './pages/CategoriesPage'
-import EventsPage from './pages/EventsPage'
-import EventEditPage from './pages/EventEditPage'
-import OperationInfoPage from './pages/OperationInfoPage'
-import OperationInfoEditPage from './pages/OperationInfoEditPage'
+import CategoryEditPage from './pages/CategoryEditPage'
+import ProductDetailInfoPage from './pages/ProductDetailInfoPage'
+import ProductDetailInfoEditPage from './pages/ProductDetailInfoEditPage'
 import ImagesPage from './pages/ImagesPage'
 import ProductGroupsPage from './pages/ProductGroupsPage'
 import PolicyPage from './pages/PolicyPage'
@@ -31,12 +30,11 @@ export default function App() {
         <Route path="/products/new" element={<ProductEditPage />} />
         <Route path="/products/:id" element={<ProductEditPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/events/new" element={<EventEditPage />} />
-        <Route path="/events/:id" element={<EventEditPage />} />
-        <Route path="/operation-info" element={<OperationInfoPage />} />
-        <Route path="/operation-info/new" element={<OperationInfoEditPage />} />
-        <Route path="/operation-info/:id" element={<OperationInfoEditPage />} />
+        <Route path="/categories/new" element={<CategoryEditPage />} />
+        <Route path="/categories/:id" element={<CategoryEditPage />} />
+        <Route path="/product-detail-info" element={<ProductDetailInfoPage />} />
+        <Route path="/product-detail-info/new" element={<ProductDetailInfoEditPage />} />
+        <Route path="/product-detail-info/:id" element={<ProductDetailInfoEditPage />} />
         <Route path="/product-groups" element={<ProductGroupsPage />} />
         <Route path="/images" element={<ImagesPage />} />
         <Route path="/policy" element={<PolicyPage />} />

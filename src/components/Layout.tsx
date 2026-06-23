@@ -21,15 +21,14 @@ const NAV: { section: string; items: NavItem[] }[] = [
     section: '상품 관리',
     items: [
       { to: '/products', label: '상품', icon: '📦' },
-      { to: '/categories', label: '상품 분류', icon: '🗂️' },
+      { to: '/categories', label: '카테고리', icon: '🗂️' },
       { to: '/product-groups', label: '상품 그룹', icon: '📋' },
-      { to: '/events', label: '이벤트', icon: '🎉' },
     ],
   },
   {
-    section: '시술 / 콘텐츠',
+    section: '콘텐츠',
     items: [
-      { to: '/operation-info', label: '시술 설명', icon: '💉' },
+      { to: '/product-detail-info', label: '상세페이지 설정', icon: '📄' },
       { to: '/images', label: '이미지', icon: '🖼️' },
     ],
   },
@@ -45,10 +44,9 @@ const NAV: { section: string; items: NavItem[] }[] = [
 const TITLES: Record<string, string> = {
   '/': '대시보드',
   '/products': '상품 관리',
-  '/categories': '상품 분류',
+  '/categories': '카테고리',
   '/product-groups': '상품 그룹',
-  '/events': '이벤트',
-  '/operation-info': '시술 설명',
+  '/product-detail-info': '상세페이지 설정',
   '/images': '이미지',
   '/policy': '약관 설정',
   '/basic-popup': '기본 팝업',

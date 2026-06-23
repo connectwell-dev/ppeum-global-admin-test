@@ -1,23 +1,14 @@
 import { api } from './api'
-import type { CategoryListItem, OperationInfoListItem, Paginated } from './types'
+import type { ProductDetailInfoListItem, Paginated } from './types'
 
-// 상품 분류 목록 (단일 뎁스) 로드
-export async function loadCategories(): Promise<CategoryListItem[]> {
-  try {
-    return await api.get<CategoryListItem[]>('/api/v1/product-category/list')
-  } catch {
-    return []
-  }
-}
-
-export interface OperationInfoOption {
+export interface ProductDetailInfoOption {
   id: number
   title: string
 }
 
-export async function loadOperationInfoOptions(): Promise<OperationInfoOption[]> {
+export async function loadProductDetailInfoOptions(): Promise<ProductDetailInfoOption[]> {
   try {
-    const res = await api.get<Paginated<OperationInfoListItem>>('/api/v1/operation-info/list', {
+    const res = await api.get<Paginated<ProductDetailInfoListItem>>('/api/v1/product-detail-info/list', {
       page: 1,
       rowCount: 200,
     })

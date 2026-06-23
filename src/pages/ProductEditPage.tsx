@@ -9,12 +9,10 @@ import {
   langLabel,
 } from '../lib/constants'
 import {
-  loadCategories,
-  loadOperationInfoOptions,
-  type OperationInfoOption,
+  loadProductDetailInfoOptions,
+  type ProductDetailInfoOption,
 } from '../lib/lookups'
 import type {
-  CategoryListItem,
   ImageRef,
   Language,
   ProductDetail,
@@ -25,14 +23,13 @@ import ImagePicker from '../components/ImagePicker'
 import { imageUrl } from '../lib/image'
 
 interface BaseForm {
-  productCategoryId: number | null
   productPrice: number
   eventPrice: number | null
   startDate: string
   endDate: string
   isActive: boolean
   isView: boolean
-  operationInfoId: number | null
+  productDetailInfoId: number | null
   name: string
   description: string
   image: ImageRef | null
@@ -46,14 +43,13 @@ interface TransForm {
 }
 
 const emptyBase: BaseForm = {
-  productCategoryId: null,
   productPrice: 0,
   eventPrice: null,
   startDate: '',
   endDate: '',
   isActive: true,
   isView: true,
-  operationInfoId: null,
+  productDetailInfoId: null,
   name: '',
   description: '',
   image: null,
@@ -72,8 +68,7 @@ export default function ProductEditPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [categories, setCategories] = useState<CategoryListItem[]>([])
-  const [opInfos, setOpInfos] = useState<OperationInfoOption[]>([])
+  const [detailInfos, setDetailInfos] = useState<ProductDetailInfoOption[]>([])
   const [base, setBase] = useState<BaseForm>(emptyBase)
   const [baseOriginal, setBaseOriginal] = useState<BaseForm>(emptyBase)
   const [isSimpleChange, setIsSimpleChange] = useState(false)
@@ -90,20 +85,18 @@ export default function ProductEditPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [cats, ops] = await Promise.all([loadCategories(), loadOperationInfoOptions()])
-        setCategories(cats)
-        setOpInfos(ops)
+        const infos = await loadProductDetailInfoOptions()
+        setDetailInfos(infos)
         if (productId) {
           const d = await api.get<ProductDetail>(`/api/v1/product/${productId}`)
           const loaded: BaseForm = {
-            productCategoryId: d.productCategoryId,
             productPrice: d.productPrice ?? 0,
             eventPrice: d.eventPrice ?? null,
             startDate: d.startDate ?? '',
             endDate: d.endDate ?? '',
             isActive: d.isActive,
             isView: d.isView ?? true,
-            operationInfoId: d.operationInfoId,
+            productDetailInfoId: d.productDetailInfoId,
             name: d.productName ?? '',
             description: d.productDescription ?? '',
             image: d.image ?? null,
@@ -173,13 +166,12 @@ export default function ProductEditPage() {
     setSaving(true)
     try {
       const common = {
-        productCategoryId: base.productCategoryId ?? undefined,
         productPrice: Number(base.productPrice),
         eventPrice: base.eventPrice != null ? Number(base.eventPrice) : undefined,
         startDate: base.startDate || undefined,
         endDate: base.endDate || undefined,
         isActive: base.isActive,
-        operationInfoId: base.operationInfoId ?? undefined,
+        productDetailInfoId: base.productDetailInfoId ?? undefined,
       }
       if (isNew) {
         // 기준 언어 + 입력 내용이 있는 다른 언어를 한 번에 등록한다.
@@ -310,28 +302,6 @@ export default function ProductEditPage() {
           </h3>
           <div className="field-row">
             <div className="field">
-              <label>상품 분류</label>
-              <select
-                value={base.productCategoryId ?? ''}
-                onChange={(e) =>
-                  setBase({
-                    ...base,
-                    productCategoryId: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              >
-                <option value="">선택</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="field-row">
-            <div className="field">
               <label>가격 <span className="req">*</span></label>
               <input
                 type="number"
@@ -354,18 +324,18 @@ export default function ProductEditPage() {
 
           <div className="field-row">
             <div className="field">
-              <label>시술 설명 연결</label>
+              <label>상세페이지 연결</label>
               <select
-                value={base.operationInfoId ?? ''}
+                value={base.productDetailInfoId ?? ''}
                 onChange={(e) =>
                   setBase({
                     ...base,
-                    operationInfoId: e.target.value ? Number(e.target.value) : null,
+                    productDetailInfoId: e.target.value ? Number(e.target.value) : null,
                   })
                 }
               >
                 <option value="">없음</option>
-                {opInfos.map((o) => (
+                {detailInfos.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.title}
                   </option>
